@@ -4,6 +4,12 @@ All notable changes to this project will be documented in this file.
 
 ## 0.2.3 — Unreleased
 
+### Added
+- Add Linux support for the renderer and CLI, including terminal detection and macOS/Ubuntu CI coverage.
+
+### Fixed
+- Handle closed output pipes without crashing in Foundation's `FileHandle` implementation.
+
 ## 0.2.2 — 2026-07-15
 
 ### Changed
