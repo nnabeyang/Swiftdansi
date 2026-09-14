@@ -2,6 +2,8 @@
 
 All notable changes to this project will be documented in this file.
 
+## 0.3.2 — Unreleased
+
 ## 0.3.1 — 2026-09-13
 
 **Highlights:** Improve ANSI parsing correctness with Unicode-scalar state transitions and raw Markdown protection, preserving visible content and balanced table output.
