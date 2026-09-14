@@ -2,16 +2,13 @@
 
 All notable changes to this project will be documented in this file.
 
-## 0.3.1 — Unreleased
+## 0.3.1 — 2026-09-13
 
-### Changed
-- Refresh the pnpm toolchain to 11.25.0, the pinned Linux development container to Swift 6.3.3, and its Git feature lock to 1.3.8.
-- Apply current SwiftFormat rules to the Markdown indentation helper.
+**Highlights:** Improve ANSI parsing correctness with Unicode-scalar state transitions and raw Markdown protection, preserving visible content and balanced table output.
 
 ### Fixed
-- Keep the demo package's local dependency resolvable when the checkout directory is not named `Swiftdansi`.
-- Protect raw Markdown and highlighter ANSI before generated styling, consume standalone ST, and keep table slicing linear while preserving Unicode re-clustering.
 - Parse ANSI state transitions at Unicode-scalar granularity, including combined and interrupted string introducers, combining-suffix ST, C1 rescans, and embedded C0/DEL/CRLF bytes.
+- Protect raw Markdown and highlighter ANSI before generated styling, consume standalone ST, and keep table slicing linear while preserving Unicode re-clustering.
 - Preserve recovered SGR state during table slicing and measure combining suffixes after re-clustering so truncated rows remain balanced and within width.
 - Honor CAN/SUB cancellation for control strings and strip two-byte ESC/CSI finals even when Swift groups them with a trailing combining mark.
 - Preserve visible suffixes after malformed bounded ESC and CSI controls while still dropping unterminated control-string payloads.
@@ -21,6 +18,11 @@ All notable changes to this project will be documented in this file.
 - Keep truncated tables within their display-width budget while preserving balanced ANSI styling, OSC-8 links, and wide-character ellipsis markers.
 - Preserve visible content and matching BEL, ST, and C1 ST terminators for OSC-8 links, strip complete 7-bit and 8-bit CSI/OSC/DCS/SOS/PM/APC controls with one shared scanner, and keep the no-control fast path to one scan.
 - Share foreground/background ANSI color parsing and ignore malformed custom hex colors instead of rendering them as white.
+- Keep the demo package's local dependency resolvable when the checkout directory is not named `Swiftdansi`.
+
+### Changed
+- Refresh the pnpm toolchain to 11.25.0, the pinned Linux development container to Swift 6.3.3, and its Git feature lock to 1.3.8.
+- Apply current SwiftFormat rules to the Markdown indentation helper.
 
 ## 0.3.0 — 2026-08-02
 
