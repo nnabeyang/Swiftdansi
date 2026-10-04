@@ -163,10 +163,12 @@ struct RenderingTests {
     }
 
     @Test
-    func `long url overflows when wrapped`() {
+    func `long url stays within width when wrapped`() {
         let url = "https://example.com/averylongpathwithoutspaces"
         let out = strip(url, options: RenderOptions(wrap: true, width: 10))
-        #expect(out.contains(url))
+        let lines = out.split(separator: "\n").map(String.init)
+        #expect(lines.allSatisfy { visibleWidth($0) <= 10 })
+        #expect(lines.joined() == url)
     }
 
     @Test
@@ -304,7 +306,9 @@ struct RenderingTests {
         | Supercalifragilistic |
         """
         let out = strip(md, options: RenderOptions(wrap: true, width: 10, tableTruncate: false))
-        #expect(out.contains("Supercalifragilistic"))
+        let content = out.split(separator: "\n").filter { $0.hasPrefix("│") }
+            .map { $0.dropFirst().dropLast().trimmingCharacters(in: .whitespaces) }.joined()
+        #expect(content.contains("Supercalifragilistic"))
         #expect(!out.contains("…"))
     }
 

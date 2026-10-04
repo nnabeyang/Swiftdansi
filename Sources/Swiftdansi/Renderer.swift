@@ -111,7 +111,12 @@ private func renderParagraph(_ para: Paragraph, ctx: RenderContext, indentLevel:
     }
 
     var wrapped = normalized.flatMap { line -> [String] in
-        wrapWithPrefix(line, width: ctx.options.width ?? 80, wrap: ctx.options.wrap, prefix: prefix)
+        wrapWithPrefix(
+            line,
+            width: ctx.options.width ?? 80,
+            wrap: ctx.options.wrap,
+            prefix: prefix,
+            ansiProtection: ctx.ansiProtection)
     }
     if let first = normalized.first(where: { !$0.isEmpty }), first.firstMatch(of: defRegex) != nil {
         wrapped.insert(prefix + "", at: 0) // ensure a blank line before footer definitions
@@ -175,11 +180,25 @@ private func renderHr(ctx: RenderContext) -> [String] {
 }
 
 private func renderBlockQuote(_ quote: BlockQuote, ctx: RenderContext, indentLevel: Int) -> [String] {
-    let inner = renderBlocks(Array(quote.blockChildren), ctx: ctx, indentLevel: indentLevel, isTightList: false)
-        .joined().trimmingCharacters(in: .whitespacesAndNewlines)
     let prefixRaw = ctx.options.quotePrefix
     let prefix = ctx.styler.apply(prefixRaw, style: ctx.options.theme.quote)
-    let wrapped = wrapWithPrefix(inner, width: ctx.options.width ?? 80, wrap: ctx.options.wrap, prefix: prefix)
+    var innerOptions = ctx.options
+    if ctx.options.wrap, let width = ctx.options.width {
+        innerOptions.width = max(1, width - visibleWidth(prefix))
+    }
+    let innerContext = RenderContext(options: innerOptions, styler: ctx.styler, ansiProtection: ctx.ansiProtection)
+    let inner = renderBlocks(
+        Array(quote.blockChildren),
+        ctx: innerContext,
+        indentLevel: indentLevel,
+        isTightList: false)
+        .joined().trimmingCharacters(in: .whitespacesAndNewlines)
+    let wrapped = wrapWithPrefix(
+        inner,
+        width: ctx.options.width ?? 80,
+        wrap: ctx.options.wrap,
+        prefix: prefix,
+        ansiProtection: ctx.ansiProtection)
     return wrapped.map { $0 + "\n" }
 }
 
@@ -376,7 +395,11 @@ private func renderTable(_ table: Table, ctx: RenderContext) -> [String] {
             } else {
                 cell
             }
-            let wrapped = wrapText(truncated, width: ctx.options.wrap ? target : Int.max / 2, wrap: ctx.options.wrap)
+            let wrapped = wrapText(
+                truncated,
+                width: target,
+                wrap: ctx.options.wrap,
+                ansiProtection: ctx.ansiProtection)
             return wrapped.map { line in
                 padCell(line, width: widths[idx], align: alignments[safe: idx] ?? .left, padding: pad)
             }
@@ -390,9 +413,12 @@ private func renderTable(_ table: Table, ctx: RenderContext) -> [String] {
                     width: widths[idx],
                     align: alignments[safe: idx] ?? .left,
                     padding: pad)
-                return header ? ctx.styler.apply(content, style: ctx.options.theme.tableHeader) : ctx.styler.apply(
-                    content,
-                    style: ctx.options.theme.tableCell)
+                let styled: String = if header {
+                    ctx.styler.apply(content, style: ctx.options.theme.tableHeader)
+                } else {
+                    ctx.styler.apply(content, style: ctx.options.theme.tableCell)
+                }
+                return ctx.options.color ? styled + "\u{001B}[0m" : styled
             }
             lines.append(parts)
         }
@@ -598,7 +624,7 @@ private func sliceCellContent(
     return result
 }
 
-private struct VisibleWidthAccumulator {
+struct VisibleWidthAccumulator {
     private static let representativeScalarLimit = 64
     private static let representativePrefixCount = 16
 
@@ -687,47 +713,6 @@ private struct VisibleWidthAccumulator {
         }
         return (result, true)
     }
-}
-
-private func updateANSIState(
-    _ sequence: Substring,
-    hasActiveSGR: inout Bool,
-    activeHyperlinkTerminator: inout ANSIOSCTerminator?)
-{
-    let sgrPrefixLength = if sequence.hasPrefix("\u{001B}[") {
-        2
-    } else if sequence.hasPrefix("\u{009B}") {
-        1
-    } else {
-        0
-    }
-    if sgrPrefixLength > 0, sequence.hasSuffix("m") {
-        let parameters = sequence.dropFirst(sgrPrefixLength).dropLast()
-        for parameter in parameters.split(separator: ";", omittingEmptySubsequences: false) {
-            hasActiveSGR = parameter != "0" && !parameter.isEmpty
-        }
-        return
-    }
-
-    let hyperlinkPrefixLength = if sequence.hasPrefix("\u{001B}]8;") {
-        4
-    } else if sequence.hasPrefix("\u{009D}8;") {
-        3
-    } else {
-        0
-    }
-    guard hyperlinkPrefixLength > 0 else { return }
-    var payload = sequence.dropFirst(hyperlinkPrefixLength)
-    if payload.hasSuffix("\u{0007}") {
-        payload = payload.dropLast()
-    } else if payload.hasSuffix("\u{001B}\\") {
-        payload = payload.dropLast(2)
-    } else if payload.hasSuffix("\u{009C}") {
-        payload = payload.dropLast()
-    }
-    guard let separator = payload.firstIndex(of: ";") else { return }
-    let isOpen = !payload[payload.index(after: separator)...].isEmpty
-    activeHyperlinkTerminator = isOpen ? ansiOSCTerminator(in: sequence) : nil
 }
 
 private func padCell(_ text: String, width: Int, align: Table.ColumnAlignment?, padding: Int) -> String {
